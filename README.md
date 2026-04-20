@@ -4,6 +4,8 @@ Fine-tunes **SmolLM2-360M-Instruct** (a small open-source language model) on a
 custom ML education Q&A dataset using **LoRA** — a technique that makes
 fine-tuning feasible on a laptop.
 
+**[Try the live demo on HuggingFace Spaces](https://huggingface.co/spaces/EricRistol/ml-tutor)**
+
 Built as project #5 of my AI portfolio, after the Local RAG project. Focus here
 is on understanding how modern LLMs are adapted to specific tasks without
 retraining from scratch.
