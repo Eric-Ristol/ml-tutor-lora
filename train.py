@@ -1,24 +1,10 @@
 #Fine-tunes SmolLM2-360M-Instruct on our ML Q&A dataset using LoRA.
-#
-#--- What is LoRA? (plain English) ---
 #A normal fine-tune updates ALL the model weights. SmolLM2-360M has 360 million
-#of them — that requires a lot of memory and time. LoRA takes a shortcut:
-#
-#  1. Freeze every original weight (they stay exactly as they were).
-#  2. For each attention layer, inject two tiny matrices A and B.
-#     If the original weight matrix is (d x d), A is (d x r) and B is (r x d),
+#of them -- that requires a lot of memory and time. LoRA takes a shortcut:
 #     where r is a small number like 8. So instead of d*d = 65,536 parameters
 #     we only train 2*d*r = 1,024 parameters per layer. ~64x fewer!
-#  3. During the forward pass the output is: W*x + (B*A)*x * (alpha/r)
 #     The original W is frozen; only A and B change.
-#  4. At inference time the adapter can be merged back into W for zero overhead,
 #     or kept separate (so you can swap adapters for different tasks).
-#
-#Libraries used:
-#  transformers  — HuggingFace: loads models, tokenizers, and the Trainer loop
-#  peft          — Parameter-Efficient Fine-Tuning (provides LoraConfig)
-#  datasets      — HuggingFace: wraps our data into Dataset objects
-#  torch         — PyTorch: the deep learning framework under everything
 
 import os
 import torch
@@ -34,38 +20,32 @@ from peft import LoraConfig, get_peft_model, TaskType
 import data as data_module
 
 
-#The base model we start from. 360M parameters — small enough for a laptop.
-#It is already instruction-tuned so it understands the chat format out of the box.
+#The base model we start from. 360M parameters -- small enough for a laptop.
 #HuggingFace will download it (~700MB) on the first run and cache it locally.
 BASE_MODEL = "HuggingFaceTB/SmolLM2-360M-Instruct"
 
 #Where to save the fine-tuned LoRA adapter weights after training.
-#We only save the adapter (the tiny A and B matrices), not the 360M-param base.
-#The adapter folder will be only a few MB.
 ADAPTER_DIR = "models/lora_adapter"
 
-#--- Training settings ---
 #Kept small so the whole training run takes minutes, not hours, on a MacBook.
 NUM_EPOCHS    = 3       #how many full passes over the dataset
 BATCH_SIZE    = 2       #examples processed per gradient update
 LEARNING_RATE = 2e-4    #step size for gradient descent
 MAX_LENGTH    = 512     #maximum tokens per training example (longer gets cut off)
 
-#--- LoRA settings ---
 LORA_RANK    = 8    #r: dimension of the low-rank matrices.
                     #Higher r = more expressive but more parameters to train.
                     #r=8 is the standard starting point.
 LORA_ALPHA   = 16   #scaling factor applied to the LoRA output.
-                    #Rule of thumb: alpha = 2 * rank is a safe default.
 LORA_DROPOUT = 0.05 #randomly zero some LoRA values during training.
-                    #Small dropout is enough — LoRA is already lightweight.
+                    #Small dropout is enough -- LoRA is already lightweight.
 
 
 def pick_device():
     #Picks the best available compute device automatically.
-    #  MPS  = Apple Silicon GPU (M1/M2/M3 Mac) — fast and memory-efficient
+    #  MPS  = Apple Silicon GPU (M1/M2/M3 Mac) -- fast and memory-efficient
     #  CUDA = Nvidia GPU (Linux/Windows gaming PC or workstation)
-    #  CPU  = universal fallback — slow but always available
+    #  CPU  = universal fallback -- slow but always available
     if torch.backends.mps.is_available():
         return "mps"
     if torch.cuda.is_available():
@@ -100,13 +80,11 @@ def load_base_model():
 def apply_lora(model):
     #Wraps the base model with LoRA adapter layers using the peft library.
     #After this call, only the LoRA A and B matrices are trainable.
-    #
     #target_modules: which sub-layers get the LoRA matrices.
     #  "q_proj" = the Query projection in each attention head
     #  "v_proj" = the Value projection in each attention head
     #  These two are the standard LoRA targets. You could add more (k_proj,
     #  o_proj, gate_proj) for stronger adaptation at the cost of more parameters.
-    #
     #task_type=CAUSAL_LM: tells peft this is a text-generation model, not a
     #  classifier. It sets the correct output head and loss computation.
 
@@ -123,7 +101,7 @@ def apply_lora(model):
 
     #This prints something like:
     #  trainable params: 786,432 || all params: 361,915,392 || trainable%: 0.217
-    #Roughly 0.2% of parameters are trainable — that is the power of LoRA.
+    #Roughly 0.2% of parameters are trainable -- that is the power of LoRA.
     model.print_trainable_parameters()
 
     return model
@@ -134,17 +112,14 @@ def run_training():
     print("Device:", device)
     print()
 
-    #Step 1: Load the base model and tokenizer.
     model, tokenizer = load_base_model()
 
-    #Step 2: Apply LoRA — freeze the base, inject trainable matrices.
     print("\nApplying LoRA adapters...")
     model = apply_lora(model)
 
     #Move model to the chosen device.
     model = model.to(device)
 
-    #Step 3: Build the training and evaluation datasets.
     print("\nPreparing dataset...")
     train_dataset, test_dataset = data_module.build_hf_dataset(
         tokenizer, max_length=MAX_LENGTH
@@ -152,11 +127,9 @@ def run_training():
     print("Train examples:", len(train_dataset))
     print("Test  examples:", len(test_dataset))
 
-    #Step 4: The DataCollator pads sequences in each batch to the same length.
     #mlm=False means causal (next-token prediction), not masked language modelling.
     collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
-    #Step 5: Training arguments — all the knobs the Trainer needs to run.
     os.makedirs(ADAPTER_DIR, exist_ok=True)
     training_args = TrainingArguments(
         output_dir=ADAPTER_DIR,
@@ -174,8 +147,7 @@ def run_training():
         dataloader_pin_memory=False, #must be False for MPS compatibility
     )
 
-    #Step 6: Create the Trainer. It handles the training loop, evaluation,
-    #checkpointing, and logging for us — no manual loop needed.
+    #checkpointing, and logging for us -- no manual loop needed.
     trainer = Trainer(
         model=model,
         args=training_args,
@@ -184,11 +156,9 @@ def run_training():
         data_collator=collator,
     )
 
-    #Step 7: Train! The Trainer prints a loss table as it goes.
     print("\n>>> Starting fine-tuning...\n")
     trainer.train()
 
-    #Step 8: Save only the LoRA adapter weights (not the full 360M base model).
     #To use the model later we just load the base + this adapter folder.
     model.save_pretrained(ADAPTER_DIR)
     tokenizer.save_pretrained(ADAPTER_DIR)

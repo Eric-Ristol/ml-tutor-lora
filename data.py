@@ -1,14 +1,7 @@
 #Everything related to the dataset: defining the Q&A pairs, formatting them
 #into the SmolLM2 chat template, and building a HuggingFace Dataset object.
-#
 #We fine-tune on ML education questions so the model gets noticeably better at
 #explaining machine learning concepts clearly and concisely.
-#
-#Why a custom Q&A dataset?
-#  - Small enough to train in minutes on a MacBook.
-#  - Thematic enough that the fine-tuning effect is clearly visible.
-#  - No external download needed (the data lives right here in this file).
-
 import os
 import json
 from datasets import Dataset
@@ -19,8 +12,6 @@ DATA_DIR  = "data"
 DATA_FILE = os.path.join(DATA_DIR, "qa_dataset.json")
 
 #System prompt that sets the personality of the fine-tuned model.
-#Keeping it short and clear is important for small models — long system prompts
-#eat into the context window and confuse tiny models.
 SYSTEM_PROMPT = (
     "You are a helpful AI tutor specializing in machine learning. "
     "Explain concepts clearly and concisely for students."
@@ -41,8 +32,8 @@ QA_PAIRS = [
     {
         "question": "What is overfitting?",
         "answer": (
-            "Overfitting happens when a model learns the training data too well — "
-            "including its noise and quirks — so it performs great on training data "
+            "Overfitting happens when a model learns the training data too well -- "
+            "including its noise and quirks -- so it performs great on training data "
             "but poorly on new, unseen data. It is like memorizing exam answers "
             "instead of understanding the concepts."
         ),
@@ -194,7 +185,7 @@ QA_PAIRS = [
         "answer": (
             "In supervised learning every training example has a label. The model "
             "learns to map inputs to outputs. In unsupervised learning there are no "
-            "labels — the model must find structure in the data on its own, for "
+            "labels -- the model must find structure in the data on its own, for "
             "example by clustering similar examples."
         ),
     },
@@ -265,8 +256,8 @@ QA_PAIRS = [
         "question": "What is precision and recall?",
         "answer": (
             "Precision is the fraction of positive predictions that are actually "
-            "positive — it measures quality. Recall is the fraction of actual "
-            "positives that were correctly identified — it measures coverage. "
+            "positive -- it measures quality. Recall is the fraction of actual "
+            "positives that were correctly identified -- it measures coverage. "
             "High precision means few false positives; high recall means few false "
             "negatives."
         ),
@@ -363,7 +354,7 @@ QA_PAIRS = [
         "answer": (
             "In deep networks, gradients are multiplied together as they flow backward "
             "through layers. If they are all smaller than 1, the product shrinks "
-            "exponentially and early layers receive nearly zero gradient — they stop "
+            "exponentially and early layers receive nearly zero gradient -- they stop "
             "learning. ReLU activations and skip connections (residual networks) help."
         ),
     },
@@ -407,16 +398,13 @@ def load_qa_pairs():
 
 def format_as_chat(qa_pair, tokenizer):
     #Formats a Q&A pair into the model's expected chat template.
-    #
     #SmolLM2-Instruct uses the ChatML format, which looks like this:
-    #
     #  <|im_start|>system
     #  You are a helpful AI tutor...<|im_end|>
     #  <|im_start|>user
     #  What is overfitting?<|im_end|>
     #  <|im_start|>assistant
     #  Overfitting happens when...<|im_end|>
-    #
     #tokenizer.apply_chat_template() builds this string automatically as long as
     #we pass a list of {"role": ..., "content": ...} dicts.
 
@@ -428,7 +416,7 @@ def format_as_chat(qa_pair, tokenizer):
 
     #tokenize=False returns the formatted string (not token IDs yet) so we can
     #inspect it and tokenize in a separate step.
-    #add_generation_prompt=False because we include the answer in training —
+    #add_generation_prompt=False because we include the answer in training --
     #we want the model to learn to produce it, not just the prompt prefix.
     text = tokenizer.apply_chat_template(
         messages,
@@ -440,13 +428,7 @@ def format_as_chat(qa_pair, tokenizer):
 
 def build_hf_dataset(tokenizer, max_length=512, test_split=0.1, seed=42):
     #Builds a HuggingFace Dataset object ready for the Trainer.
-    #
     #Steps:
-    #  1. Load Q&A pairs.
-    #  2. Format each one as a chat string.
-    #  3. Tokenize (convert text -> token ID integers).
-    #  4. Set labels = input_ids (standard for causal language modelling).
-    #  5. Split into train and test sets.
 
     pairs = load_qa_pairs()
     texts = [format_as_chat(p, tokenizer) for p in pairs]

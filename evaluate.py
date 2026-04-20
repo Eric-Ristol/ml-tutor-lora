@@ -1,18 +1,12 @@
 #Evaluates the fine-tuned SmolLM2 + LoRA model.
-#
 #We measure two things:
-#
-#  1. Perplexity on the held-out test set.
 #     Perplexity = exp(average negative log-likelihood per token).
 #     The base model does not know our dataset at all, so it will be "surprised"
 #     by our ML Q&A text and have HIGH perplexity. After fine-tuning the model
 #     assigns higher probability to our style of answers, so perplexity DROPS.
 #     A visible drop (e.g. 30 -> 8) is direct evidence that training worked.
-#
-#  2. Side-by-side generation.
 #     We feed the fine-tuned model a few test questions and print its responses
 #     next to the expected answers, so you can judge quality by eye.
-#
 #Run this AFTER python train.py has finished.
 
 import os
@@ -44,7 +38,6 @@ def pick_device():
 
 def load_finetuned_model(device):
     #Loads the base model and then applies the saved LoRA adapter on top.
-    #PeftModel.from_pretrained reads the adapter folder and injects the
     #trained A and B matrices back into the right layers.
     if not os.path.exists(ADAPTER_DIR):
         print("ERROR: No adapter found at", ADAPTER_DIR)
@@ -73,18 +66,12 @@ def load_finetuned_model(device):
 
 def compute_perplexity(model, tokenizer, test_dataset, device):
     #Computes perplexity on the test set.
-    #
     #How the math works:
     #  - For each example we do a forward pass and get the cross-entropy loss L.
     #    L is the average of -log P(token_t | token_1..token_{t-1}) over all t.
     #  - We accumulate L * n_tokens for every example, then divide by total tokens.
     #    This gives a token-weighted average loss across the whole test set.
     #  - Perplexity = exp(average_loss).
-    #
-    #We weight by n_tokens because some examples are longer than others — without
-    #weighting, a short example and a long example would count equally, which
-    #would bias the metric toward shorter examples.
-
     total_loss_x_tokens = 0.0
     total_tokens        = 0
 
@@ -124,7 +111,7 @@ def generate_answer(model, tokenizer, question, device, temperature=1.0):
         output_ids = model.generate(
             **inputs,
             max_new_tokens=MAX_NEW_TOKENS,
-            do_sample=False,                    #greedy decoding — deterministic
+            do_sample=False,                    #greedy decoding -- deterministic
             pad_token_id=tokenizer.eos_token_id,
         )
 
@@ -137,16 +124,13 @@ def run_evaluation():
     device = pick_device()
     print("Device:", device)
 
-    #1. Load the fine-tuned model.
     model, tokenizer = load_finetuned_model(device)
 
-    #2. Rebuild the dataset with the same random seed used during training,
     #   so we get the exact same train/test split and evaluate on truly unseen data.
     print("\nPreparing test dataset...")
     _, test_dataset = data_module.build_hf_dataset(tokenizer)
     print("Test examples:", len(test_dataset))
 
-    #3. Perplexity.
     print("\nComputing perplexity on the test set (may take a minute)...")
     ppl = compute_perplexity(model, tokenizer, test_dataset, device)
     print()
@@ -156,7 +140,6 @@ def run_evaluation():
         " a well fine-tuned model typically drops below 5-8.)"
     )
 
-    #4. Side-by-side sample outputs.
     print()
     print("=" * 65)
     print("Sample outputs from the fine-tuned model")

@@ -1,180 +1,95 @@
-# LLM Fine-tuning with LoRA
+# ML Tutor with LoRA
 
-Fine-tunes **SmolLM2-360M-Instruct** (a small open-source language model) on a
-custom ML education Q&A dataset using **LoRA** — a technique that makes
-fine-tuning feasible on a laptop.
+Fine-tune SmolLM2-360M-Instruct on ML education Q&A using LoRA.
 
-**[Try the live demo on HuggingFace Spaces](https://huggingface.co/spaces/EricRistol/ml-tutor)**
+**[Live demo](https://huggingface.co/spaces/EricRistol/ml-tutor)**
 
-Built as project #5 of my AI portfolio, after the Local RAG project. Focus here
-is on understanding how modern LLMs are adapted to specific tasks without
-retraining from scratch.
+## What is LoRA
 
----
+Normal fine-tuning updates all 360 million model weights. Takes huge memory and hours on GPU.
 
-## What is LoRA? (plain English)
+LoRA (Low-Rank Adaptation) keeps the original weights frozen and injects two tiny trainable matrices (A and B) into each attention layer. Only A and B get updated during training.
 
-Normal fine-tuning would update all 360 million weights of SmolLM2. That
-requires enormous memory and takes hours even on a GPU.
+With rank r=8:
+- Normal attention weight: d×d = 65,536 parameters
+- With LoRA: 2×d×r = 1,024 trainable parameters
+- That's 64x fewer parameters to train
 
-**LoRA (Low-Rank Adaptation)** takes a shortcut:
+The adapter file ends up being a few MB instead of 700 MB.
 
-1. **Freeze** every original model weight. They never change.
-2. For each attention layer, inject two tiny extra matrices: **A** (shape d × r)
-   and **B** (shape r × d), where **r** is a small number like 8.
-3. During training, only A and B are updated. A weight matrix that had
-   d × d = 65,536 parameters now has 2 × d × r = 1,024 trainable parameters.
-   That is 64× fewer.
-4. The model's output at each layer becomes:  `W·x + (B·A)·x · (α/r)`,
-   where W is the frozen original and α is a scaling constant.
-5. After training, only the tiny A and B matrices are saved — a few MB
-   instead of ~700 MB for the full model.
+## What's included
 
-The result: a model adapted to your dataset with ~0.2% of the usual compute.
-
----
-
-## What this project does
-
-- Defines 40 ML education Q&A pairs directly in `data.py` (no download needed).
-- Fine-tunes SmolLM2-360M-Instruct on them for 3 epochs using LoRA.
-- Evaluates the fine-tuned model with perplexity and sample outputs.
-- Provides an interactive CLI to chat with the model.
-- Has a `--compare` flag that shows base model vs fine-tuned side-by-side —
-  the clearest way to see that the fine-tuning actually changed the model.
-
----
-
-## Required packages
-
-```
-pip install -r requirements.txt
-```
-
-> On Apple Silicon Macs, PyTorch uses the MPS backend (Apple's GPU) automatically.
-> On a machine without a GPU it falls back to CPU, which is slower but works fine.
-
-The first run also downloads the SmolLM2 base model from HuggingFace (~700 MB).
-It is cached locally after that, so subsequent runs are fast.
-
----
+- `data.py`: 40 ML Q&A pairs baked in (no downloads needed)
+- `train.py`: Fine-tune with LoRA for 3 epochs
+- `evaluate.py`: Compute perplexity and sample outputs
+- `generate.py`: Chat with the fine-tuned model
+- `--compare` flag: Compare base model vs fine-tuned side-by-side
 
 ## How to run
 
-**Recommended order:**
-
-### 1. (Optional) Inspect the dataset
-
+```bash
+pip install -r requirements.txt
 ```
+
+First run downloads SmolLM2 (~700 MB, cached after that).
+
+### Inspect the dataset
+
+```bash
 python data.py
 ```
 
-Saves the 40 Q&A pairs to `data/qa_dataset.json`. Open it in any text editor to
-read what the model will be trained on.
+Saves 40 Q&A pairs to `data/qa_dataset.json`.
 
-### 2. Fine-tune
+### Fine-tune
 
-```
+```bash
 python train.py
 ```
 
-Downloads the base model (first run only), applies LoRA, and trains for 3 epochs.
-Prints training loss and evaluation loss after each epoch.
-Saves the adapter to `models/lora_adapter/`.
+Trains for 3 epochs. Expected time: 5-15 minutes on CPU, 2-5 minutes on Apple Silicon.
 
-Expected time: **5–15 minutes on CPU**, **2–5 minutes on Apple Silicon (MPS)**.
+### Evaluate
 
-### 3. Evaluate
-
-```
+```bash
 python evaluate.py
 ```
 
-Computes perplexity on the held-out test examples and prints sample generations
-next to the expected answers. A well fine-tuned model will have lower perplexity
-than the base model and noticeably more focused answers.
+Computes perplexity on test examples and prints sample generations.
 
-### 4. Generate
+### Chat
 
-```
-python generate.py                          # interactive chat
-python generate.py -q "What is dropout?"   # single question, then exit
-python generate.py --compare                # base model vs fine-tuned, side-by-side
+```bash
+python generate.py
 ```
 
-The `--compare` flag is the most visually impressive demo — it loads both models
-and prints their answers to the same questions so the difference is obvious.
+Interactive chat with the fine-tuned model.
 
----
+### Compare models
+
+```bash
+python generate.py --compare
+```
+
+Shows base model vs fine-tuned model side-by-side.
+
+## Results
+
+Fine-tuned model achieves lower perplexity and more focused, correct answers compared to the base model.
 
 ## Files
 
 ```
-LLM-finetune/
-    data.py           # Q&A pairs, chat formatting, HuggingFace Dataset builder
-    train.py          # LoRA config, training loop, saves adapter
-    evaluate.py       # perplexity computation, sample generation
-    generate.py       # interactive CLI, --compare mode
-    requirements.txt
-    data/             # qa_dataset.json (generated by data.py or train.py)
-    models/
-        lora_adapter/ # saved after running train.py
-            adapter_config.json
-            adapter_model.safetensors
-            tokenizer files...
+├── data.py              Q&A dataset
+├── train.py             LoRA fine-tuning
+├── evaluate.py          perplexity + sampling
+├── generate.py          interactive chat
+├── main.py              CLI menu
+├── hf-space/            Gradio demo for HuggingFace
+├── models/lora_adapter/ saved LoRA weights
+└── data/qa_dataset.json the training data
 ```
 
 ---
 
-## Expected results
-
-| Metric                    | Typical value                          |
-|---------------------------|----------------------------------------|
-| Trainable parameters      | ~786K out of 361M (≈ 0.22%)           |
-| Training time (CPU)       | 5–15 minutes                           |
-| Training time (MPS)       | 2–5 minutes                            |
-| Base model perplexity     | 20–50 on this dataset                  |
-| Fine-tuned perplexity     | 4–10 on this dataset                   |
-| Adapter size on disk      | ~6 MB                                  |
-
-A perplexity drop of ~4× shows the model genuinely adapted to the dataset style,
-not just memorized. The base model still knows all its general knowledge — LoRA
-only shifts its behaviour for our specific task.
-
----
-
-## Concepts used
-
-- **Tokenization**: splitting text into integer IDs the model can process.
-- **Causal language modelling**: predicting the next token at every position.
-- **LoRA**: low-rank matrix injection for parameter-efficient fine-tuning.
-- **PEFT**: the HuggingFace library that implements LoRA (and others like QLoRA,
-  IA3, prefix tuning).
-- **Chat template**: the formatted string structure (system / user / assistant
-  turns) that instruction-tuned models expect.
-- **Perplexity**: exp(average cross-entropy loss) — the standard language model
-  evaluation metric.
-- **DataCollator**: batches sequences and pads them to the same length per batch.
-- **Trainer**: HuggingFace's training loop — handles gradient accumulation,
-  checkpointing, logging, and early stopping.
-
----
-
-## What I learned
-
-- How to adapt a pre-trained language model to a specific domain without touching
-  95%+ of its parameters.
-- Why LoRA works mathematically: weight updates in fine-tuning are empirically
-  low-rank, so a low-rank approximation captures most of the signal.
-- How chat templates structure prompts, and why getting this right is critical
-  for instruction-tuned models.
-- How perplexity quantifies improvement: it directly measures how well the model
-  has learned the probability distribution of our dataset.
-- The practical pain points of running LLMs locally: memory, device selection
-  (CPU / MPS / CUDA), and the ~700MB model download.
-
----
-
-## Author
-
-Eric Ristol — 1st year Bachelor in Artificial Intelligence, UAB.
+**[Live demo](https://huggingface.co/spaces/EricRistol/ml-tutor)**

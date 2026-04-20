@@ -1,15 +1,11 @@
 #Interactive CLI for chatting with the fine-tuned SmolLM2 + LoRA model.
-#
 #Usage:
 #   python generate.py                       -- interactive chat loop
 #   python generate.py -q "What is LoRA?"   -- one question, then exit
 #   python generate.py --compare             -- show base model vs fine-tuned
-#
 #The model answers machine learning questions using the style it learned during
 #fine-tuning. Try asking questions that are in the dataset (it should answer
 #confidently) and questions that are NOT in the dataset (to see generalization).
-#
-#Run  python train.py  first to create the adapter in models/lora_adapter/.
 
 import os
 import argparse
@@ -108,14 +104,14 @@ def generate_answer(model, tokenizer, question, device):
             pad_token_id=tokenizer.eos_token_id,
         )
 
-    #Decode only the newly generated tokens — skip the prompt we fed in.
+    #Decode only the newly generated tokens -- skip the prompt we fed in.
     new_tokens = output_ids[0][inputs["input_ids"].shape[1]:]
     return tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
 
 
 def interactive_loop(model, tokenizer, device):
     #Runs a simple REPL: you type a question, the model answers, repeat.
-    print("\nML Tutor — SmolLM2-360M + LoRA")
+    print("\nML Tutor -- SmolLM2-360M + LoRA")
     print("Ask me anything about machine learning.")
     print("Type 'quit' or press Ctrl-C to exit.\n")
 
