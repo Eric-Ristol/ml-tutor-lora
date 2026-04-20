@@ -453,18 +453,14 @@ def build_hf_dataset(tokenizer, max_length=512, test_split=0.1, seed=42):
 
     def tokenize_example(example):
         #Tokenize a single example. Truncate if it is longer than max_length.
-        #padding=False because the Trainer's DataCollator handles padding per
-        #batch — padding every sequence to max_length up front wastes memory.
+        #The DataCollatorForLanguageModeling handles padding per batch and
+        #sets labels = input_ids automatically, so we don't set them here.
         result = tokenizer(
             example["text"],
             truncation=True,
             max_length=max_length,
             padding=False,
         )
-        #In causal language modelling the model predicts the next token at
-        #every position. So labels are just a copy of input_ids.
-        #The Trainer automatically ignores padding tokens in the loss.
-        result["labels"] = result["input_ids"].copy()
         return result
 
     #Wrap texts in a HuggingFace Dataset so the Trainer knows how to iterate it.

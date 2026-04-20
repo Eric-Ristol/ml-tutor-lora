@@ -7,3 +7,6 @@ dist/
 build/
 .env
 wandb/
+-e 
+# Training checkpoints (redundant with final adapter)
+models/lora_adapter/checkpoint-*/
