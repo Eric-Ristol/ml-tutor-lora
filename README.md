@@ -19,7 +19,9 @@ The adapter file ends up being a few MB instead of 700 MB.
 
 ## What's included
 
-- `data.py`: 40 ML Q&A pairs baked in (no downloads needed)
+- `data.py`: 40 hand-curated ML Q&A pairs (core concepts)
+- `extra_qa_pairs.py`: 80+ additional curated pairs covering modern LLMs, optimization, evaluation, and classical ML — combined with `data.py` for ~120 total training examples
+- `fetch_public_data.py`: Optional script to pull more Q&A from Stack Exchange (CrossValidated / Data Science) when you want to scale further
 - `train.py`: Fine-tune with LoRA for 3 epochs
 - `evaluate.py`: Compute perplexity and sample outputs
 - `generate.py`: Chat with the fine-tuned model
@@ -39,7 +41,7 @@ First run downloads SmolLM2 (~700 MB, cached after that).
 python data.py
 ```
 
-Saves 40 Q&A pairs to `data/qa_dataset.json`.
+Saves the combined ~120 Q&A pairs to `data/qa_dataset.json`.
 
 ### Fine-tune
 

@@ -139,9 +139,10 @@ def run_training():
         learning_rate=LEARNING_RATE,
         warmup_ratio=0.05,           #ramp up the LR for the first 5% of steps
         weight_decay=0.01,           #mild L2 regularization on the LoRA weights
-        logging_steps=5,             #print training loss every 5 optimizer steps
+        logging_steps=10,            #print training loss every 10 optimizer steps
         eval_strategy="epoch",       #run evaluation after every epoch
         save_strategy="epoch",       #save a checkpoint after every epoch
+        save_total_limit=2,          #keep last + best, prune older checkpoints
         load_best_model_at_end=True, #restore the best checkpoint when done
         report_to="none",            #disable wandb / tensorboard (keeps it simple)
         dataloader_pin_memory=False, #must be False for MPS compatibility

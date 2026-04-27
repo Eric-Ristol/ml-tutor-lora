@@ -6,6 +6,8 @@ import os
 import json
 from datasets import Dataset
 
+from extra_qa_pairs import EXTRA_QA_PAIRS
+
 
 #Where to save the JSON version of the dataset.
 DATA_DIR  = "data"
@@ -379,21 +381,26 @@ QA_PAIRS = [
 ]
 
 
+def all_pairs():
+    #Combines the original 40 hand-curated pairs with the broader set in
+    #extra_qa_pairs.py so we train on the full ~124-pair dataset.
+    return QA_PAIRS + EXTRA_QA_PAIRS
+
+
 def save_dataset():
-    #Saves the QA_PAIRS list to a JSON file so external tools can read it.
+    #Saves the combined Q&A list to a JSON file so external tools can read it.
+    pairs = all_pairs()
     os.makedirs(DATA_DIR, exist_ok=True)
     with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(QA_PAIRS, f, indent=2, ensure_ascii=False)
-    print("Saved", len(QA_PAIRS), "Q&A pairs to", DATA_FILE)
+        json.dump(pairs, f, indent=2, ensure_ascii=False)
+    print("Saved", len(pairs), "Q&A pairs to", DATA_FILE)
 
 
 def load_qa_pairs():
-    #Loads Q&A pairs from the JSON file.
-    #Generates it first if it does not exist yet.
-    if not os.path.exists(DATA_FILE):
-        save_dataset()
-    with open(DATA_FILE, encoding="utf-8") as f:
-        return json.load(f)
+    #Returns the full curated + extras Q&A list and rewrites the JSON file
+    #on disk so it stays in sync with the Python source of truth.
+    save_dataset()
+    return all_pairs()
 
 
 def format_as_chat(qa_pair, tokenizer):
